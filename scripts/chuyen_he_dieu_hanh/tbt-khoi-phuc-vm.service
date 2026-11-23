@@ -1,0 +1,12 @@
+[Unit]
+Description=Bat lai cac VPS dang chay truoc khi chuyen sang Windows
+After=pve-guests.service
+Wants=pve-guests.service
+ConditionPathExists=/var/lib/tbt/vm-dang-chay.txt
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'for v in $(cat /var/lib/tbt/vm-dang-chay.txt); do qm status $v | grep -q running || qm start $v; done; rm -f /var/lib/tbt/vm-dang-chay.txt'
+
+[Install]
+WantedBy=multi-user.target

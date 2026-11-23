@@ -1,0 +1,52 @@
+# Bao cao, tai lieu rieng
+BaoCao/
+huong_dan/
+NHAT_KY_THUC_HIEN.md
+BAN_GIAO_PHIEN.md
+PROJECT_TREE.md
+*.docx
+*.xlsx
+*.pptx
+*.pdf
+~$*
+
+# Bi mat
+.env
+*.env
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+
+# Ket qua script
+kiem_tra_may_*.txt
+
+# Do thi tri thuc
+graphify-out/
+
+# Ban nop, repo thu rieng, cong cu cuc bo
+/NOP/
+/Test/
+.impeccable/
+
+# Flutter
+.dart_tool/
+build/
+*.iml
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Khac
+*.dump
+*.tgz
+*.log

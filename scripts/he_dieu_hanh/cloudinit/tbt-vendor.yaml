@@ -1,0 +1,11 @@
+#cloud-config
+ssh_pwauth: true
+disable_root: false
+write_files:
+  - path: /etc/ssh/sshd_config.d/00-tbt-root.conf
+    permissions: "0644"
+    content: |
+      PermitRootLogin yes
+      PasswordAuthentication yes
+runcmd:
+  - [sh, -c, "systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true"]

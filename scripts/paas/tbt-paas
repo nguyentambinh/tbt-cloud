@@ -1,0 +1,113 @@
+#!/usr/bin/python3
+# Nguyễn Tâm Bình - 2324801030003
+# Cấu hình dịch vụ PaaS ở lần khởi động đầu theo JSON trong SMBIOS serial (postgres hoặc webapp).
+import base64
+import json
+import pathlib
+import re
+import subprocess
+import sys
+
+DONE = pathlib.Path("/var/lib/tbt-paas/done")
+LOG = pathlib.Path("/var/log/tbt-paas.log")
+
+
+def log(text):
+    with LOG.open("a") as f:
+        f.write(text + "\n")
+
+
+def run(*args, **kw):
+    log("$ " + " ".join(a if "PASSWORD" not in a else "<an>" for a in args))
+    return subprocess.run(args, check=True, **kw)
+
+
+def read_config():
+    raw = pathlib.Path("/sys/class/dmi/id/product_serial").read_text().strip()
+    for text in (raw, base64.b64decode(raw + "=" * (-len(raw) % 4)).decode() if re.fullmatch(r"[A-Za-z0-9+/=]+", raw or "-") else ""):
+        try:
+            data = json.loads(text)
+            if isinstance(data, dict) and data.get("kind") in {"postgres", "webapp"}:
+                return data
+        except ValueError:
+            pass
+    return None
+
+
+def postgres(cfg):
+    name = re.compile(r"^[a-z_][a-z0-9_]{0,30}$")
+    db, user, password = cfg["db"], cfg["user"], cfg["password"]
+    if not name.match(db) or not name.match(user) or not password or "\n" in password:
+        raise ValueError("Cấu hình PostgreSQL không hợp lệ")
+    conf = next(pathlib.Path("/etc/postgresql").glob("*/main"))
+    text = (conf / "postgresql.conf").read_text()
+    if "\nlisten_addresses = '*'" not in text:
+        (conf / "postgresql.conf").write_text(text + "\nlisten_addresses = '*'\n")
+    hba = conf / "pg_hba.conf"
+    if "tbt-paas" not in hba.read_text():
+        hba.write_text(hba.read_text() + "# tbt-paas\nhost all all 0.0.0.0/0 scram-sha-256\n")
+    run("systemctl", "enable", "--now", "postgresql")
+    sql = f"DROP DATABASE IF EXISTS {db};\nDROP ROLE IF EXISTS {user};\nCREATE ROLE {user} LOGIN PASSWORD :'pw';\nCREATE DATABASE {db} OWNER {user};\n"
+    subprocess.run(["runuser", "-u", "postgres", "--", "psql", "-v", "ON_ERROR_STOP=1", "-v", f"pw={password}"], input=sql, text=True, check=True, capture_output=True)
+    run("systemctl", "restart", "postgresql")
+    run("systemctl", "disable", "--now", "nginx")
+
+
+NGINX = """server {{
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    {body}
+}}
+"""
+
+
+def webapp(cfg):
+    repo, branch = cfg["repo"], cfg.get("branch") or "main"
+    if not re.fullmatch(r"https://[A-Za-z0-9.-]+(:[0-9]+)?/[A-Za-z0-9._~/%+-]+", repo) or not re.fullmatch(r"[A-Za-z0-9._/-]{1,100}", branch):
+        raise ValueError("Kho Git không hợp lệ")
+    run("systemctl", "disable", "--now", "postgresql")
+    if subprocess.run(["id", "app"], capture_output=True).returncode != 0:
+        run("useradd", "--system", "--create-home", "--home-dir", "/srv/app-home", "--shell", "/usr/sbin/nologin", "app")
+    run("chmod", "755", "/srv/app-home")
+    run("rm", "-rf", "/srv/app", "/srv/app-home/src")
+    clone = subprocess.run(["runuser", "-u", "app", "--", "git", "clone", "--depth", "1", "--branch", branch, repo, "/srv/app-home/src"], capture_output=True, text=True)
+    if clone.returncode != 0:
+        log("Nhanh " + branch + " khong dung duoc, lay nhanh mac dinh: " + clone.stderr.strip()[-200:])
+        run("rm", "-rf", "/srv/app-home/src")
+        run("runuser", "-u", "app", "--", "git", "clone", "--depth", "1", repo, "/srv/app-home/src")
+    run("ln", "-sfn", "/srv/app-home/src", "/srv/app")
+    src = pathlib.Path("/srv/app")
+    if (src / "package.json").exists():
+        run("runuser", "-u", "app", "--", "sh", "-c", "cd /srv/app && npm install --omit=dev --no-audit --no-fund")
+        pathlib.Path("/etc/systemd/system/tbt-app.service").write_text("[Unit]\nDescription=Ung dung web cua khach\nAfter=network-online.target\n[Service]\nUser=app\nWorkingDirectory=/srv/app\nEnvironment=PORT=3000 NODE_ENV=production\nExecStart=/usr/bin/npm start\nRestart=always\nRestartSec=3\n[Install]\nWantedBy=multi-user.target\n")
+        run("systemctl", "daemon-reload")
+        run("systemctl", "enable", "--now", "tbt-app")
+        body = "location / {\n        proxy_pass http://127.0.0.1:3000;\n        proxy_set_header Host $host;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    }"
+    else:
+        root = next((src / d for d in ("dist", "build", "public", "docs", "") if (src / d / "index.html").exists()), src)
+        body = f"root {root};\n    index index.html;\n    location / {{ try_files $uri $uri/ /index.html; }}"
+    pathlib.Path("/etc/nginx/sites-available/default").write_text(NGINX.format(body=body))
+    run("systemctl", "enable", "--now", "nginx")
+    run("systemctl", "restart", "nginx")
+
+
+def main():
+    if DONE.exists():
+        return 0
+    cfg = read_config()
+    if cfg is None:
+        log("Chua co cau hinh PaaS trong SMBIOS")
+        return 0
+    try:
+        (postgres if cfg["kind"] == "postgres" else webapp)(cfg)
+    except Exception as e:
+        log(f"Loi: {type(e).__name__}")
+        return 1
+    DONE.parent.mkdir(parents=True, exist_ok=True)
+    DONE.write_text(cfg["kind"] + "\n")
+    log("Xong " + cfg["kind"])
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,14 @@
+# Nguyễn Tâm Bình - 2324801030003
+[Unit]
+Description=Cau hinh dich vu PaaS lan dau
+After=network-online.target cloud-config.service
+Wants=network-online.target
+ConditionPathExists=!/var/lib/tbt-paas/done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/tbt-paas
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

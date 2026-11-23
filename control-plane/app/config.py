@@ -25,6 +25,15 @@ class Settings(BaseSettings):
     proxmox_timeout: float = Field(default=10, gt=0, le=60)
     disk_overcommit: float = Field(default=1.5, ge=1, le=4)
     disk_reserve_gb: int = Field(default=10, ge=0, le=1000)
+    gemini_api_key: SecretStr | None = None
+    gemini_model: str = Field(default="gemini-3.5-flash-lite", pattern=r"^[a-z0-9.-]{3,60}$")
+    ai_daily_limit: int = Field(default=30, ge=1, le=1000)
+    gemini_fallback_models: str = "gemini-2.5-flash"
+    gemini_retry_seconds: float = Field(default=1.5, ge=0, le=10)
+    gemini_timeout: float = Field(default=20, gt=0, le=120)
+    gemini_budget: float = Field(default=30, gt=0, le=300)
+    anthropic_api_key: SecretStr | None = None
+    claude_model: str = Field(default="claude-sonnet-5-5", pattern=r"^claude-[a-z0-9.-]{3,60}$")
     cloud_init_vendor: str = Field(default="local:snippets/tbt-vendor.yaml", pattern=r"^([A-Za-z0-9_.-]+:snippets/[A-Za-z0-9_.-]+)?$")  # rỗng: không gắn vendor-data
     proxmox_task_timeout: float = Field(default=180, gt=0, le=600)
     proxmox_verify_ssl: str = "true"  # "true", "false" hoặc đường dẫn tệp CA của node

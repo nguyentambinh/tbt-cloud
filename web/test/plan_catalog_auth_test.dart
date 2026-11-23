@@ -95,7 +95,7 @@ void main() {
     final state = CloudState(ApiClient(client: MockClient((_) async { calls++; return response({}); })))..plans = catalog.where((p) => p['dich_vu'] == 'vps').toList();
     addTearDown(state.dispose);
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: CreateScreen(state: state))));
-    await tester.tap(find.widgetWithText(ChoiceChip, serviceName('postgres'))); await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(ChoiceChip, serviceName('postgres'))); await tester.tap(find.widgetWithText(ChoiceChip, serviceName('postgres'))); await tester.pump();
     final choices = tester.widget<PlanChoices>(find.byType(PlanChoices));
     expect(choices.plans, isEmpty); expect(choices.selected, isNull);
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Tạo dịch vụ')).onPressed, isNull);

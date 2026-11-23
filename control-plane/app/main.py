@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.config import get_settings
-from app.routers import admin, agent, auth, billing, instances, nodes, notifications, os_images, plans, public
+from app.routers import admin, advisor, agent, auth, billing, instances, nodes, notifications, os_images, plans, public
 from app.web import serve_web
 from app.workers.scheduler import create_scheduler
 from app.services import notify
@@ -30,7 +30,7 @@ def create_app():
     settings = get_settings()
     application = FastAPI(title=settings.app_name, lifespan=lifespan)
     application.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=False, allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Authorization", "Content-Type"])
-    for router in (auth.router, plans.router, instances.router, nodes.router, os_images.router, billing.router, admin.router, agent.router, public.router, notifications.router):
+    for router in (auth.router, plans.router, instances.router, nodes.router, os_images.router, billing.router, admin.router, agent.router, public.router, notifications.router, advisor.router):
         application.include_router(router, prefix="/api/v1")
 
     @application.get("/health", tags=["health"])

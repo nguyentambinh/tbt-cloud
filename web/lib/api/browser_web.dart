@@ -19,6 +19,18 @@ void openCheckout(String url) {
   }
 }
 
+Future<(String, List<int>)?> pickFile(String accept) async {
+  final input = html.FileUploadInputElement()..accept = accept;
+  input.click();
+  await input.onChange.first;
+  final file = input.files?.isNotEmpty == true ? input.files!.first : null;
+  if (file == null) return null;
+  final reader = html.FileReader()..readAsArrayBuffer(file);
+  await reader.onLoadEnd.first;
+  final data = reader.result;
+  return data is List<int> ? (file.name, data) : null;
+}
+
 void openService(String url) {
   final uri = Uri.tryParse(url);
   if (uri != null && ['http', 'https'].contains(uri.scheme) && uri.host.isNotEmpty && uri.userInfo.isEmpty) {

@@ -134,7 +134,9 @@ def ask_claude(text, inline):
         data = inline["inline_data"]
         content.append({"type": "document" if data["mime_type"] == "application/pdf" else "image", "source": {"type": "base64", "media_type": data["mime_type"], "data": data["data"]}})
     content.append({"type": "text", "text": text})
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key.get_secret_value(), timeout=90, max_retries=2)
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key.get_secret_value(), timeout=45, max_retries=1)
+    started = time.monotonic()
+    logger.warning("Gemini lỗi, chuyển sang Claude %s", settings.claude_model)
     try:
         response = client.beta.messages.create(model=settings.claude_model, max_tokens=4000, betas=["server-side-fallback-2026-07-01"], fallbacks="default", output_config={"effort": "low", "format": {"type": "json_schema", "schema": CLAUDE_SCHEMA}}, messages=[{"role": "user", "content": content}])
     except anthropic.RateLimitError:
@@ -146,6 +148,7 @@ def ask_claude(text, inline):
     except anthropic.APIConnectionError:
         logger.warning("Không kết nối được Claude dự phòng")
         return None
+    logger.warning("Claude trả lời sau %.1fs", time.monotonic() - started)
     if response.stop_reason in ("refusal", "max_tokens"):
         logger.warning("Claude dự phòng dừng vì %s", response.stop_reason)
         return None

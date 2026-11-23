@@ -50,3 +50,6 @@ build/
 *.dump
 *.tgz
 *.log
+
+# Hướng dẫn riêng cho Codex
+AGENTS.md

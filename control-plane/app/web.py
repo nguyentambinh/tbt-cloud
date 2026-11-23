@@ -24,7 +24,6 @@ def serve_web(application, directory):
             target = (root / "index.html").resolve()
         if not target.is_relative_to(root) or any(part.startswith(".") for part in target.relative_to(root).parts):
             raise HTTPException(status_code=404, detail="Không tìm thấy tệp.")
-        # Mã web, trang, icon luôn hỏi lại bản mới (không đổi thì 304); font và canvaskit không đổi theo bản build nên giữ lâu
-        parts = target.relative_to(root).parts
-        cache = "public, max-age=86400" if parts[0] == "canvaskit" or parts[:2] == ("assets", "fonts") else "no-cache"
+        # Mã web, trang, icon, font (font icon được cắt theo từng bản build) luôn hỏi lại bản mới, không đổi thì 304; chỉ canvaskit giữ lâu
+        cache = "public, max-age=86400" if target.relative_to(root).parts[0] == "canvaskit" else "no-cache"
         return FileResponse(target, headers={"Cache-Control": cache, "X-Content-Type-Options": "nosniff", "Referrer-Policy": "same-origin"})

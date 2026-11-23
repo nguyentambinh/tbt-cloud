@@ -60,7 +60,7 @@ class _CreateScreenState extends State<CreateScreen> {
     if (widget.state.balance < number(plan['gia_theo_gio'])) { setState(() => error = 'Ví chưa đủ trả trước một giờ. Hãy nạp thêm tiền.'); return; }
     setState(() { busy = true; error = null; });
     try {
-      final result = await widget.state.api.post('/instances', {if (name.text.trim().isNotEmpty) 'ten': name.text.trim(), 'plan_id': selected, 'loai': 'vm', 'dich_vu': ai ? 'vps' : service, if (service == 'webapp') ...{'repo_url': repo.text.trim(), 'branch': branch.text}, if (choosesOS || ai) 'os_ma': selectedOS!['ma'], if (!windows && ssh.text.trim().isNotEmpty) 'ssh_public_key': ssh.text.trim()});
+      final result = Map<String, dynamic>.from(await widget.state.api.request('/instances', method: 'POST', timeoutSeconds: 600, body: {if (name.text.trim().isNotEmpty) 'ten': name.text.trim(), 'plan_id': selected, 'loai': 'vm', 'dich_vu': ai ? 'vps' : service, if (service == 'webapp') ...{'repo_url': repo.text.trim(), 'branch': branch.text}, if (choosesOS || ai) 'os_ma': selectedOS!['ma'], if (!windows && ssh.text.trim().isNotEmpty) 'ssh_public_key': ssh.text.trim()}) as Map);
       await widget.state.refresh();
       if (!mounted) return;
       setState(() => created = result);
